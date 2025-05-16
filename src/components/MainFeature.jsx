@@ -20,6 +20,7 @@ export default function MainFeature() {
   // State
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -30,10 +31,18 @@ export default function MainFeature() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await getTasks();
-      setTasks(data);
+      
+      // Ensure we always set a valid array, even if data is undefined
+      if (Array.isArray(data)) {
+        setTasks(data);
+      } else {
+        console.error("Invalid task data format received:", data);
+        setTasks([]);
+      }
     } catch (error) {
-      toast.error("Error loading tasks");
+      toast.error("Error loading tasks: " + (error.message || "Unknown error"));
       console.error("Error fetching tasks:", error);
     } finally {
       setLoading(false);

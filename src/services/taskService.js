@@ -50,11 +50,11 @@ export const getTasks = async (filters = {}) => {
 
     const response = await apperClient.fetchRecords("task1", params);
 
-    if (!response || !response.data) {
+    // Ensure proper handling of empty or missing response data
+    if (!response || !response.data || !Array.isArray(response.data)) {
+      console.log("API returned empty or invalid response data structure", response);
       return [];
     }
-
-    // Transform the response to match the expected task structure
     return response.data.map(task => ({
       id: task.Id.toString(),
       title: task.title || task.Name,
@@ -71,6 +71,7 @@ export const getTasks = async (filters = {}) => {
     }));
   } catch (error) {
     console.error("Error fetching tasks:", error);
+    // Re-throw the error to be handled by the component
     throw error;
   }
 };
