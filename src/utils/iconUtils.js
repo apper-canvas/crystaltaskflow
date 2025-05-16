@@ -1,7 +1,41 @@
-import * as Icons from 'lucide-react';
+import {
+  Moon,
+  Sun,
+  LayoutGrid,
+  Calendar,
+  BarChart3,
+  Settings2,
+  Plus,
+  X,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+  Circle,
+  Edit2,
+  Trash2,
+  User,
+  LogOut
+} from 'lucide-react';
 
-export const getIcon = (iconName) => {
-  return (Icons[iconName] && typeof Icons[iconName] === 'function') 
-    ? Icons[iconName] 
-    : Icons.Smile;
+// Map of icon names to their components
+const iconMap = {
+  Moon,
+  Sun,
+  LayoutGrid,
+  Calendar,
+  BarChart3,
+  Settings2,
+  Plus,
+  X,
+  CheckCircle,
+  AlertCircle,
+  AlertTriangle,
+  Circle,
+  Edit2,
+  Trash2,
+  User,
+  LogOut
 };
+
+// Function to get an icon component by name
+export const getIcon = (name) => iconMap[name] || null;

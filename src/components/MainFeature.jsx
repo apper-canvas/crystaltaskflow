@@ -1,9 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-toastify';
 import { getIcon } from '../utils/iconUtils';
+import { getTasks, createTask, updateTaskStatus, deleteTask } from '../services/taskService';
+import { useSelector } from 'react-redux';
 
 export default function MainFeature() {
+  const { isAuthenticated } = useSelector((state) => state.user);
+
   // Task statuses
   const columns = [
     { id: 'backlog', title: 'Backlog' },
@@ -13,81 +17,28 @@ export default function MainFeature() {
     { id: 'done', title: 'Done' }
   ];
 
-  // Initial tasks
-  const [tasks, setTasks] = useState([
-    {
-      id: '1',
-      title: 'Update homepage design',
-      description: 'Implement new hero section and navigation',
-      status: 'todo',
-      priority: 'high',
-      assignee: {
-        id: '1',
-        name: 'Sarah Chen',
-        avatar: 'https://i.pravatar.cc/150?img=1'
-      }
-    },
-    {
-      id: '2',
-      title: 'Fix checkout page bug',
-      description: 'Address payment processing error on mobile devices',
-      status: 'inProgress',
-      priority: 'urgent',
-      assignee: {
-        id: '2',
-        name: 'Michael Johnson',
-        avatar: 'https://i.pravatar.cc/150?img=2'
-      }
-    },
-    {
-      id: '3',
-      title: 'Create content for blog posts',
-      description: 'Write 3 articles about upcoming features',
-      status: 'backlog',
-      priority: 'medium',
-      assignee: {
-        id: '3',
-        name: 'Emma Smith',
-        avatar: 'https://i.pravatar.cc/150?img=3'
-      }
-    },
-    {
-      id: '4',
-      title: 'SEO optimization',
-      description: 'Improve meta tags and page speed',
-      status: 'todo',
-      priority: 'medium',
-      assignee: {
-        id: '1',
-        name: 'Sarah Chen',
-        avatar: 'https://i.pravatar.cc/150?img=1'
-      }
-    },
-    {
-      id: '5',
-      title: 'Update privacy policy',
-      description: 'Review and update terms to comply with regulations',
-      status: 'review',
-      priority: 'low',
-      assignee: {
-        id: '4',
-        name: 'Alex Turner',
-        avatar: 'https://i.pravatar.cc/150?img=4'
-      }
-    },
-    {
-      id: '6',
-      title: 'Database optimization',
-      description: 'Improve query performance for user dashboard',
-      status: 'done',
-      priority: 'high',
-      assignee: {
-        id: '5',
-        name: 'James Wilson',
-        avatar: 'https://i.pravatar.cc/150?img=5'
-      }
+  // State
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchTasks();
     }
-  ]);
+  }, [isAuthenticated]);
+
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const data = await getTasks();
+      setTasks(data);
+    } catch (error) {
+      toast.error("Error loading tasks");
+      console.error("Error fetching tasks:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // New task form state
   const [showNewTaskForm, setShowNewTaskForm] = useState(false);
@@ -97,7 +48,7 @@ export default function MainFeature() {
     status: 'backlog',
     priority: 'medium',
     assignee: {
-      id: '1',
+      name: 'Sarah Chen', 
       name: 'Sarah Chen',
       avatar: 'https://i.pravatar.cc/150?img=1'
     }
@@ -139,7 +90,7 @@ export default function MainFeature() {
   };
 
   // Submit new task
-  const handleNewTaskSubmit = (e) => {
+  const handleNewTaskSubmit = async (e) => {
     e.preventDefault();
     
     // Form validation
@@ -148,14 +99,20 @@ export default function MainFeature() {
       return;
     }
     
-    // Add new task to the list
-    const taskToAdd = {
-      ...newTask,
-      id: Date.now().toString(), // Simple ID generation
-    };
-    
-    setTasks(prev => [...prev, taskToAdd]);
-    setShowNewTaskForm(false);
+    try {
+      // Create task in database
+      const createdTask = await createTask(newTask);
+      
+      // Add new task to the UI list
+      setTasks(prev => [createdTask, ...prev]);
+      setShowNewTaskForm(false);
+      
+      toast.success("Task created successfully!");
+    } catch (error) {
+      console.error("Error creating task:", error);
+      toast.error("Failed to create task. Please try again.");
+      return;
+    }
     
     // Reset form
     setNewTask({
@@ -169,7 +126,6 @@ export default function MainFeature() {
         avatar: 'https://i.pravatar.cc/150?img=1'
       }
     });
-    
     toast.success("Task created successfully!");
   };
 
@@ -189,33 +145,56 @@ export default function MainFeature() {
     dragOverColumnId.current = columnId;
   };
   
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     
-    if (draggingTask && dragOverColumnId.current) {
-      const updatedTasks = tasks.map(task => {
-        if (task.id === draggingTask.id) {
-          const updatedTask = {
-            ...task,
-            status: dragOverColumnId.current
-          };
-          return updatedTask;
-        }
-        return task;
-      });
+    if (!draggingTask || !dragOverColumnId.current) return;
+    
+    // Only update if status actually changed
+    if (draggingTask.status === dragOverColumnId.current) {
+      setDraggingTask(null);
+      return;
+    }
+
+    try {
+      // Optimistically update UI
+      const updatedTasks = tasks.map(task => 
+        task.id === draggingTask.id 
+          ? { ...task, status: dragOverColumnId.current }
+          : task
+      );
       
       setTasks(updatedTasks);
       toast.info(`Task moved to ${columns.find(col => col.id === dragOverColumnId.current).title}`);
       setDraggingTask(null);
+      
+      // Update in database
+      await updateTaskStatus(draggingTask.id, dragOverColumnId.current);
+    } catch (error) {
+      console.error("Error updating task status:", error);
+      toast.error("Failed to update task. Please try again.");
+      // Revert the UI change
+      fetchTasks();
     }
   };
 
   // Delete task
-  const handleDeleteTask = () => {
-    if (selectedTask) {
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return;
+    
+    try {
+      // Optimistically update UI
       setTasks(tasks.filter(task => task.id !== selectedTask.id));
       setShowTaskDetails(false);
+      
+      // Delete from database
+      await deleteTask(selectedTask.id);
       toast.success("Task deleted successfully");
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast.error("Failed to delete task. Please try again.");
+      // Refresh task list on error
+      fetchTasks();
     }
   };
 
@@ -243,16 +222,22 @@ export default function MainFeature() {
 
   return (
     <div className="overflow-hidden">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-50">Task Board</h2>
         <button
           onClick={handleNewTaskClick}
           className="btn btn-primary text-sm"
         >
           <PlusIcon className="w-4 h-4 mr-1" />
+      
+      {loading && (
+        <div className="flex justify-center items-center py-10">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      )}
           Add Task
         </button>
-      </div>
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4 overflow-x-auto ${loading ? 'opacity-50' : ''}`}>
 
       {/* Kanban Board */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4 overflow-x-auto">
@@ -271,7 +256,18 @@ export default function MainFeature() {
             </div>
             
             <div className="space-y-2 min-h-[100px]">
-              <AnimatePresence>
+              {getTasksByStatus(column.id).length === 0 && (
+                <div className="flex items-center justify-center h-20 border-2 border-dashed border-surface-200 dark:border-surface-700 rounded-lg">
+                  <p className="text-xs text-surface-500 dark:text-surface-400">
+                    {column.id === 'backlog' ? (
+                      'Add a new task to get started'
+                    ) : (
+                      'Drag tasks here'
+                    )}
+                  </p>
+                </div>
+              )}
+              <AnimatePresence mode="popLayout">
                 {getTasksByStatus(column.id).map(task => {
                   const PriorityIcon = getPriorityIcon(task.priority);
                   
