@@ -48,7 +48,6 @@ export default function MainFeature() {
     status: 'backlog',
     priority: 'medium',
     assignee: {
-      name: 'Sarah Chen', 
       name: 'Sarah Chen',
       avatar: 'https://i.pravatar.cc/150?img=1'
     }
@@ -229,18 +228,17 @@ export default function MainFeature() {
           className="btn btn-primary text-sm"
         >
           <PlusIcon className="w-4 h-4 mr-1" />
-      
+          Add Task
+        </button>
+      </div>
+
       {loading && (
         <div className="flex justify-center items-center py-10">
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
         </div>
       )}
-          Add Task
-        </button>
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4 overflow-x-auto ${loading ? 'opacity-50' : ''}`}>
 
-      {/* Kanban Board */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4 overflow-x-auto">
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4 overflow-x-auto ${loading ? 'opacity-50' : ''}`}>
         {columns.map(column => (
           <div 
             key={column.id}
